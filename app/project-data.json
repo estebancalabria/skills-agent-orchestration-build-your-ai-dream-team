@@ -1,0 +1,36 @@
+{
+  "projects": [
+    {
+      "name": "Contributor Onboarding",
+      "owner": "Mona Patel",
+      "status": "Active",
+      "recentActivity": "Published the first-run guide and collected feedback from three new contributors.",
+      "priority": "High",
+      "summary": "Makes it easier for new contributors to find a welcoming, repeatable path into the project."
+    },
+    {
+      "name": "Accessibility Baseline",
+      "owner": "Jordan Lee",
+      "status": "At risk",
+      "recentActivity": "Keyboard navigation audit found two focus-order issues awaiting review.",
+      "priority": "High",
+      "summary": "Tracks the shared accessibility improvements needed across contributor-facing tools."
+    },
+    {
+      "name": "Documentation Refresh",
+      "owner": "Sam Rivera",
+      "status": "Planned",
+      "recentActivity": "The content inventory is complete and the revision schedule is being prepared.",
+      "priority": "Medium",
+      "summary": "Organizes the next update of setup, workflow, and troubleshooting documentation."
+    },
+    {
+      "name": "Community Metrics",
+      "owner": "Avery Chen",
+      "status": "Active",
+      "recentActivity": "Added a monthly review note covering response times and newcomer participation.",
+      "priority": "Low",
+      "summary": "Provides a lightweight view of community health signals for maintainers and contributors."
+    }
+  ]
+}

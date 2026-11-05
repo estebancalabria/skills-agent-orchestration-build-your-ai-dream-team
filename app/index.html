@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="A concise contributor view of project health, priorities, and activity.">
+    <title>Project Pulse</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to projects</a>
+
+    <main class="dashboard" id="main-content" aria-labelledby="page-title">
+      <header class="dashboard__header">
+        <div class="dashboard__intro">
+          <p class="eyebrow">Contributor workspace</p>
+          <h1 id="page-title">Project Pulse</h1>
+          <p class="dashboard__description">A concise view of project health, priorities, and recent contributor activity.</p>
+        </div>
+        <p class="project-count" id="project-count" aria-live="polite">Loading projects…</p>
+      </header>
+
+      <section class="project-section" aria-labelledby="projects-heading">
+        <div class="project-section__heading">
+          <h2 id="projects-heading">Projects</h2>
+        </div>
+        <div class="project-state project-state--loading" id="project-state" role="status" aria-live="polite" aria-atomic="true"></div>
+        <ul class="project-grid" id="project-list" aria-describedby="project-state" hidden></ul>
+      </section>
+    </main>
+
+    <script>
+      (() => {
+        const projectList = document.getElementById("project-list");
+        const projectState = document.getElementById("project-state");
+        const projectCount = document.getElementById("project-count");
+        const stateClasses = ["project-state--loading", "project-state--empty", "project-state--error"];
+
+        const text = (value, fallback) =>
+          typeof value === "string" && value.trim() ? value.trim() : fallback;
+
+        function appendElement(parent, tagName, className, value) {
+          const element = document.createElement(tagName);
+          if (className) element.className = className;
+          if (value !== undefined) element.textContent = value;
+          parent.append(element);
+          return element;
+        }
+
+        function setState(type, heading, description) {
+          stateClasses.forEach((className) => projectState.classList.remove(className));
+          projectState.classList.add(`project-state--${type}`);
+          projectState.replaceChildren();
+          projectState.setAttribute("role", type === "error" ? "alert" : "status");
+          const icon = appendElement(projectState, "span", "project-state__icon", type === "error" ? "!" : type === "empty" ? "○" : "•");
+          icon.setAttribute("aria-hidden", "true");
+          const copy = appendElement(projectState, "div", "project-state__copy");
+          appendElement(copy, "h3", "project-state__title", heading);
+          appendElement(copy, "p", "project-state__description", description);
+        }
+
+        function classify(value, taxonomy) {
+          const original = text(value, "");
+          const normalized = original.toLowerCase().replace(/[\s_]+/g, "-");
+          return taxonomy[normalized] || { key: "unknown", label: original || taxonomy.unknown.label, icon: "?" };
+        }
+
+        const statuses = {
+          active: { key: "active", label: "Active", icon: "●" },
+          "at-risk": { key: "at-risk", label: "At risk", icon: "!" },
+          planned: { key: "planned", label: "Planned", icon: "○" },
+          unknown: { key: "unknown", label: "Unknown status", icon: "?" }
+        };
+        const priorities = {
+          high: { key: "high", label: "High priority", icon: "↑" },
+          medium: { key: "medium", label: "Medium priority", icon: "—" },
+          low: { key: "low", label: "Low priority", icon: "↓" },
+          unknown: { key: "unknown", label: "Unknown priority", icon: "?" }
+        };
+
+        function renderProject(record, index) {
+          const project = record && typeof record === "object" ? record : {};
+          const status = classify(project.status, statuses);
+          const priority = classify(project.priority, priorities);
+          const item = document.createElement("li");
+          item.className = "project-card";
+          item.dataset.status = status.key;
+          item.dataset.priority = priority.key;
+
+          const article = appendElement(item, "article", "project-card__content");
+          const titleId = `project-name-${index + 1}`;
+          article.setAttribute("aria-labelledby", titleId);
+          const header = appendElement(article, "header", "project-card__header");
+          const identity = appendElement(header, "div", "project-card__identity");
+          appendElement(identity, "p", "project-card__eyebrow", "Project");
+          const title = appendElement(identity, "h3", "project-card__title", text(project.name, "Untitled project"));
+          title.id = titleId;
+          const owner = appendElement(identity, "p", "project-card__owner");
+          appendElement(owner, "span", "sr-only", "Owner: ");
+          owner.append(document.createTextNode(text(project.owner, "Owner not specified")));
+
+          const badge = appendElement(header, "span", `status-badge status-badge--${status.key}`);
+          badge.dataset.status = status.key;
+          const badgeIcon = appendElement(badge, "span", "status-badge__icon", status.icon);
+          badgeIcon.setAttribute("aria-hidden", "true");
+          appendElement(badge, "span", "status-badge__label", status.label);
+
+          appendElement(article, "p", "project-card__summary", text(project.summary, "No summary provided"));
+          const details = appendElement(article, "dl", "project-card__details");
+          const priorityDetail = appendElement(details, "div", "project-card__detail");
+          appendElement(priorityDetail, "dt", "", "Priority");
+          const priorityValue = appendElement(priorityDetail, "dd");
+          const priorityLabel = appendElement(priorityValue, "span", `priority priority--${priority.key}`);
+          priorityLabel.dataset.priority = priority.key;
+          const priorityIcon = appendElement(priorityLabel, "span", "priority__icon", priority.icon);
+          priorityIcon.setAttribute("aria-hidden", "true");
+          appendElement(priorityLabel, "span", "priority__label", priority.label);
+
+          const activityDetail = appendElement(details, "div", "project-card__detail project-card__detail--activity");
+          appendElement(activityDetail, "dt", "", "Recent activity");
+          appendElement(activityDetail, "dd", "", text(project.recentActivity, "No recent activity provided"));
+          return item;
+        }
+
+        async function loadProjects() {
+          setState("loading", "Loading projects", "Project information is being retrieved.");
+          projectList.hidden = true;
+          try {
+            const response = await fetch("project-data.json", { cache: "no-store" });
+            if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
+            const data = await response.json();
+            if (!data || !Array.isArray(data.projects)) throw new Error("Project data does not contain a projects array.");
+            if (data.projects.length === 0) {
+              setState("empty", "No projects yet", "Projects will appear here when they are available.");
+              projectCount.textContent = "0 projects";
+              return;
+            }
+            projectList.replaceChildren(...data.projects.map(renderProject));
+            projectState.replaceChildren();
+            stateClasses.forEach((className) => projectState.classList.remove(className));
+            projectList.hidden = false;
+            projectCount.textContent = `${data.projects.length} ${data.projects.length === 1 ? "project" : "projects"}`;
+          } catch (error) {
+            projectList.replaceChildren();
+            projectList.hidden = true;
+            setState("error", "Projects could not be loaded", "Check that Project Pulse is opened through its local server, then try again.");
+            projectCount.textContent = "Projects unavailable";
+            console.error("Unable to load Project Pulse data:", error);
+          }
+        }
+
+        loadProjects();
+      })();
+    </script>
+  </body>
+</html>
